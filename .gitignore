@@ -1,5 +1,6 @@
 .env
 .venv
 simple-etl/dbt/logs/*
-simple-etl/dbt/target/*
+simple-etl/dbt/target/**
 simple-etl/airflow/logs/*
+simple-etl/airflow/logs/scheduler/*/*.log
