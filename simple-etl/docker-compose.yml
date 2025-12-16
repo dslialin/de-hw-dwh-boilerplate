@@ -19,6 +19,34 @@ services:
       - CLICKHOUSE_PASSWORD=airflow
       - CLICKHOUSE_DB=bank_dwh
 
+  postgres:
+    image: postgres:16
+    container_name: pg-bank-src
+    environment:
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: bank
+      POSTGRES_PASSWORD: bank
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      # - ../seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./postgres_init/03_publication.sql:/docker-entrypoint-initdb.d/03_publication.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U bank -d bankdb" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [ bank-net ]
+
   airflow:
     build:
       context: ./airflow
@@ -101,7 +129,9 @@ services:
   debezium:
     image: debezium/connect:2.7.0.Final
     container_name: debezium-connect
-    depends_on: [kafka]
+    depends_on:
+      - kafka
+      - postgres
     environment:
       - BOOTSTRAP_SERVERS=kafka:9092
       - GROUP_ID=1
@@ -164,6 +194,7 @@ services:
     container_name: debezium-init
     depends_on:
       - debezium
+      - postgres
     volumes:
       - ./debezium:/connectors:ro
     env_file:

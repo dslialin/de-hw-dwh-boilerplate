@@ -4,19 +4,19 @@
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
     "tasks.max": "1",
 
-    "database.hostname": "${PG_HOST}",
-    "database.port": "${PG_PORT}",
-    "database.user": "${PG_USER}",
-    "database.password": "${PG_PASSWORD}",
-    "database.dbname": "${PG_DB}",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "bank",
+    "database.password": "bank",
+    "database.dbname": "bankdb",
     "topic.prefix": "bankcdc",
+    "publication.name": "bankcdc_pub",
 
     "schema.include.list": "bank",
     "table.include.list": "bank.transaction",
 
     "plugin.name": "pgoutput",
-    "slot.name": "bankcdc_slot",
-    "publication.name": "bankcdc_pub",
+    "slot.name": "bankcdc_slot_transaction",
     "publication.autocreate.mode": "disabled",
 
     "decimal.handling.mode": "double",

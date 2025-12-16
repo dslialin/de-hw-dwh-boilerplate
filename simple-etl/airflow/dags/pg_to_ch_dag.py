@@ -30,7 +30,7 @@ def pg_conn():
         dbname=PG_DB,
         user=PG_USER,
         password=PG_PASS,
-        sslmode="require",
+        sslmode="disable",
     )
 
 
@@ -376,6 +376,7 @@ def load_transactions_and_fact():
         """, (last_id,))
         rows = cur.fetchall()
 
+    ch.execute("TRUNCATE TABLE bank_dwh.stg_transaction;")
     if rows:
         # stg_transaction
         data = [
@@ -425,28 +426,40 @@ def load_transactions_and_fact():
     # Пересобираем факт (полный rebuild для простоты)
     ch.execute("TRUNCATE TABLE bank_dwh.ods_fact_atm_transaction;")
     ch.execute("""
-        INSERT INTO bank_dwh.ods_fact_atm_transaction (
-            txn_id, txn_ts, amount, currency_code,
-            card_id, card_number,
-            account_id, account_number, customer_id, customer_city,
-            terminal_id, terminal_city,
-            txn_type, status
+        INSERT INTO bank_dwh.ods_fact_atm_transaction
+        (
+            txn_id,
+            txn_ts,
+            amount,
+            `tx.currency_code`,
+            `card_dim.card_id`,
+            card_number,
+            `acc_dim.account_id`,
+            account_number,
+            `cust_dim.customer_id`,
+            customer_city,
+            `term_dim.terminal_id`,
+            terminal_city,
+            txn_type,
+            `tx.status`,
+            loaded_at
         )
         SELECT
             t.txn_id,
             t.txn_ts,
-            toFloat64(t.amount)          AS amount,
-            t.currency_code,
-            c.card_id,
-            c.card_number,
-            a.account_id,
-            a.account_number,
-            cust.customer_id,
-            cust.city                    AS customer_city,
-            term.terminal_id,
-            term.city                    AS terminal_city,
-            t.txn_type,
-            t.status
+            toFloat64(t.amount) AS amount,
+            t.currency_code AS `tx.currency_code`,
+            c.card_id AS `card_dim.card_id`,
+            c.card_number AS card_number,
+            a.account_id AS `acc_dim.account_id`,
+            a.account_number AS account_number,
+            cust.customer_id AS `cust_dim.customer_id`,
+            cust.city AS customer_city,
+            term.terminal_id AS `term_dim.terminal_id`,
+            term.city AS terminal_city,
+            t.txn_type AS txn_type,
+            t.status AS `tx.status`,
+            now() AS loaded_at
         FROM bank_dwh.raw_transaction t
         LEFT JOIN bank_dwh.raw_card c
             ON c.card_id = t.card_id
@@ -455,7 +468,7 @@ def load_transactions_and_fact():
         LEFT JOIN bank_dwh.raw_customer cust
             ON cust.customer_id = a.customer_id
         LEFT JOIN bank_dwh.raw_terminal term
-            ON term.terminal_id = t.terminal_id;
+            ON term.terminal_id = t.terminal_id
     """)
 
     pg.close()

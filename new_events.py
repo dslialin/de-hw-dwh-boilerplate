@@ -15,9 +15,9 @@ DB = os.getenv("DB_NAME", "db")
 DB_USER = os.getenv("DB_USER", "bank")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
 DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "6432")
+DB_PORT = os.getenv("DB_PORT", "5432")
 
-DSN = f"dbname={DB} user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} sslmode=verify-full target_session_attrs=read-write"
+DSN = f"dbname={DB} user={DB_USER} password={DB_PASSWORD} host={DB_HOST} port={DB_PORT} sslmode=disable target_session_attrs=read-write"
 
 # === Объёмы изменений за один запуск ===
 N_NEW_CUSTOMERS = 5
