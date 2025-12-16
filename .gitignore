@@ -1,10 +1,12 @@
 .env
-.venv
-simple-etl/dbt/logs/*
-simple-etl/dbt/target/**
-simple-etl/airflow/logs/*
-simple-etl/airflow/logs/scheduler/*/*.log
 
+.venv/
+venv/
+
+simple-etl/dbt/logs/
+simple-etl/dbt/target/
+
+simple-etl/airflow/logs/
 
 .DS_Store
 **/.DS_Store
@@ -13,7 +15,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.idea/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.ipynb_checkpoints/
+
 airflow/logs/
 airflow/logs/**
-
 airflow/logs/scheduler/
