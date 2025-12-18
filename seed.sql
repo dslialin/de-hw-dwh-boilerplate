@@ -11,13 +11,16 @@ FROM generate_series(1, 100) AS g;
 -- === Create 1–3 accounts per customer ===
 INSERT INTO bank.account (account_number, customer_id, currency_code, opened_at, daily_transfer_limit)
 SELECT
-    'ACC' || lpad((1000000 + g)::text, 10, '0') AS account_number,
-    c.customer_id,
-    (ARRAY['RUB','USD','EUR'])[ (1 + floor(random()*3))::int ] AS currency_code,
-    now() - (random()*365 || ' days')::interval AS opened_at,
-    (ARRAY[50000, 100000, 250000])[ (1 + floor(random()*3))::int ]::numeric(18,2)
-FROM bank.customer c
-JOIN LATERAL generate_series(1, (1 + floor(random()*3))::int) AS g ON true;
+  'ACC' || lpad((1000000 + row_number() OVER ())::text, 10, '0') AS account_number,
+  customer_id,
+  (ARRAY['RUB','USD','EUR'])[ (1 + floor(random()*3))::int ] AS currency_code,
+  now() - (random()*365 || ' days')::interval AS opened_at,
+  (ARRAY[50000, 100000, 250000])[ (1 + floor(random()*3))::int ]::numeric(18,2) AS daily_transfer_limit
+FROM (
+  SELECT c.customer_id
+  FROM bank.customer c
+  JOIN LATERAL generate_series(1, (1 + floor(random()*3))::int) gs ON true
+) t;
 
 -- === Create 1–2 cards per account ===
 INSERT INTO bank.card (card_number, account_id, opened_at)
@@ -37,3 +40,22 @@ SELECT
     (55 + random())::numeric(9,6),
     (37 + random())::numeric(9,6)
 FROM generate_series(1, 50) AS g;
+
+-- === Create some transactions ===
+INSERT INTO bank.transaction (card_id, terminal_id, txn_ts, amount, currency_code, txn_type, status)
+SELECT
+  c.card_id,
+  t.terminal_id,
+  now() - (random() * 30 || ' days')::interval AS txn_ts,
+  round((10 + random()*5000)::numeric, 2) AS amount,
+  (ARRAY['RUB','USD','EUR'])[ (1 + floor(random()*3))::int ] AS currency_code,
+  (ARRAY['atm_withdrawal','atm_deposit'])[ (1 + floor(random()*2))::int ]::bank.txn_type AS txn_type,
+  (ARRAY['approved','declined','reversed'])[ (1 + floor(random()*3))::int ]::bank.txn_status AS status
+FROM bank.card c
+CROSS JOIN LATERAL (
+  SELECT terminal_id
+  FROM bank.terminal
+  ORDER BY random()
+  LIMIT 1
+) t
+LIMIT 500;

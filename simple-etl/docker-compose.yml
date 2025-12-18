@@ -37,8 +37,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      - pg_data:/var/lib/postgresql/data
       - ../schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-      # - ../seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ../seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
       - ./postgres_init/03_publication.sql:/docker-entrypoint-initdb.d/03_publication.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U bank -d bankdb" ]
@@ -228,6 +229,7 @@ services:
 
 volumes:
   ch_data:
+  pg_data:
 
 networks:
   bank-net:
