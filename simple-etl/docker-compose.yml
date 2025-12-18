@@ -51,9 +51,9 @@ services:
     command: >
       bash -c "
       airflow db init &&
+      airflow db migrate &&
       airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
-      airflow webserver &
-      airflow scheduler
+      (airflow webserver & airflow scheduler)
       "
     networks:
       - bank-net
@@ -78,12 +78,12 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    networks: [bank-net]
+    networks: [ bank-net ]
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: kafka-bank
-    depends_on: [zookeeper]
+    depends_on: [ zookeeper ]
     ports:
       - "9092:9092"
     environment:
@@ -95,13 +95,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    networks: [bank-net]
-
+    networks: [ bank-net ]
 
   debezium:
     image: debezium/connect:2.7.0.Final
     container_name: debezium-connect
-    depends_on: [kafka]
+    depends_on: [ kafka ]
     environment:
       - BOOTSTRAP_SERVERS=kafka:9092
       - GROUP_ID=1
@@ -117,7 +116,7 @@ services:
       - STATUS_STORAGE_REPLICATION_FACTOR=1
     ports:
       - "8083:8083"
-    networks: [bank-net]
+    networks: [ bank-net ]
 
   cdc-consumer:
     build:
@@ -149,16 +148,16 @@ services:
       - CDC_POLL_TIMEOUT_MS=1000
     volumes:
       - ./cdc:/opt/cdc
-    command: >
-      bash -lc "python /opt/cdc/cdc_consumer_multi.py"
+    command: python -u /opt/cdc/cdc_consumer_multi.py
     networks:
       - bank-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q cdc_consumer_multi.py"]
+      test: [ "CMD-SHELL", "grep -q 'cdc_consumer_multi.py' /proc/*/cmdline" ]
       interval: 30s
       timeout: 5s
       retries: 3
+
   debezium-init:
     image: curlimages/curl:8.10.1
     container_name: debezium-init
@@ -180,8 +179,10 @@ services:
 
         for f in /connectors/*.json; do
           echo "Registering: $$f"
+          sed "s/\$${PG_HOST}/$${PG_HOST}/g; s/\$${PG_PORT}/$${PG_PORT}/g; s/\$${PG_USER}/$${PG_USER}/g; s/\$${PG_PASSWORD}/$${PG_PASSWORD}/g; s/\$${PG_DB}/$${PG_DB}/g" "$$f" > /tmp/payload.json
+
           resp=$$(curl -sS -X POST -H "Content-Type: application/json" \
-            --data @$$f \
+            --data @/tmp/payload.json \
             -w "\nHTTP=%{http_code}\n" \
             http://debezium:8083/connectors || true)
           echo "$$resp"
@@ -191,9 +192,8 @@ services:
         curl -sS http://debezium:8083/connectors;
         echo "";
       '
-    networks: [bank-net]
+    networks: [ bank-net ]
     restart: "no"
-
 
 volumes:
   ch_data:

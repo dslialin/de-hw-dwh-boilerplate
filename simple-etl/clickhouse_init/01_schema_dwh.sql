@@ -278,7 +278,7 @@ ORDER BY (ts, metric);
 CREATE TABLE IF NOT EXISTS bank_dwh.stg_cdc_card (
     kafka_partition Int32,
     kafka_offset    Int64,
-    op              Enum8('c'=1,'u'=2,'d'=3),
+    op              Enum8('c'=1,'u'=2,'d'=3,'r'=4),
     card_id         Int32,
     payload_before  String,
     payload_after   String,
@@ -312,7 +312,7 @@ ORDER BY (card_id, valid_from);
 CREATE TABLE IF NOT EXISTS bank_dwh.stg_cdc_transaction (
     kafka_partition Int32,
     kafka_offset    Int64,
-    op              Enum8('c'=1,'u'=2,'d'=3),
+    op              Enum8('c'=1,'u'=2,'d'=3,'r'=4),
     txn_id          UInt64,
     payload_after   String,
     src_ts          DateTime64(3),

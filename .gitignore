@@ -6,6 +6,7 @@ simple-etl/airflow/logs/*
 simple-etl/airflow/logs/scheduler/*/*.log
 
 
+.idea
 .DS_Store
 **/.DS_Store
 

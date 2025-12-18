@@ -13,7 +13,7 @@ GROUP_ID = os.getenv("CDC_CONSUMER_GROUP", "ch_cdc_v1")
 TOPICS = [t.strip() for t in os.getenv("CDC_TOPICS", "").split(",") if t.strip()]
 
 DEBEZIUM_URL = os.getenv("DEBEZIUM_URL", "http://debezium:8083")
-DEBEZIUM_CONNECTORS = [c.strip() for c in os.getenv("DEBEZIUM_CONNECTORS", "bank-transaction-cdc,bank-card-cdc").split(",") if c.strip()]
+DEBEZIUM_CONNECTORS = [c.strip() for c in os.getenv("DEBEZIUM_CONNECTORS", "bank").split(",") if c.strip()]
 
 CH_HOST = os.getenv("CH_HOST", "clickhouse")
 CH_PORT = int(os.getenv("CH_PORT", "9000"))

@@ -1,5 +1,5 @@
 {
-  "name": "bank-transaction-cdc",
+  "name": "bank",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
     "tasks.max": "1",
@@ -12,7 +12,7 @@
     "topic.prefix": "bankcdc",
 
     "schema.include.list": "bank",
-    "table.include.list": "bank.transaction",
+    "table.include.list": "bank.card,bank.transaction",
 
     "plugin.name": "pgoutput",
     "slot.name": "bankcdc_slot",
