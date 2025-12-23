@@ -106,8 +106,14 @@ docker cp docker-spark-1:/tmp/export_dm ./export_dm
    docker exec -it docker-flink-jobmanager-1 ./bin/sql-client.sh
    ```
 
-6) Checks:
+6) Create paimon catalog and run checks:
    ```
+   CREATE CATALOG IF NOT EXISTS paimon WITH (
+     'type' = 'paimon',
+     'warehouse' = 's3a://lake/paimon'
+   );
+   USE CATALOG paimon;
+
    SELECT count(*) FROM ods_transactions;
    SELECT * FROM dm_daily_revenue_by_merchant ORDER BY dt DESC, merchant_id LIMIT 20;
    ```
@@ -117,3 +123,5 @@ docker cp docker-spark-1:/tmp/export_dm ./export_dm
    docker compose -f docker/compose-paimon.yml exec flink-jobmanager \
     ./bin/sql-client.sh -f /opt/sql/paimon/04_flush.sql; > dm_preview.txt
    ```
+
+8) Use p.7) to save checks from p.6) into files and pass the files as a hometask results
