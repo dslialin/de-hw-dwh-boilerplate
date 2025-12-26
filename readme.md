@@ -2,6 +2,30 @@
 
 ![Metabase dashboard](metabase_dashboard.png)
 
+## HW2 — Fraud CDM/DM + Metabase
+
+### Run
+```bash
+docker compose up -d --build
+docker exec -it airflow-bank-simple bash -lc "airflow dags unpause pg_to_ch_simple_dwh fraud_dbt_daily"
+docker exec -it airflow-bank-simple bash -lc "airflow dags trigger pg_to_ch_simple_dwh"
+docker exec -it airflow-bank-simple bash -lc "airflow dags trigger fraud_dbt_daily"
+```
+
+Check:
+```bash
+docker exec -it ch-bank-simple clickhouse-client --query "SELECT count() FROM bank_dwh.cdm_fraud_events"
+docker exec -it ch-bank-simple clickhouse-client --query "SELECT * FROM bank_dwh.dm_fraud_daily_counts ORDER BY fraud_date DESC, fraud_type LIMIT 20"
+```
+
+Metabase
+
+Open http://localhost:3000 and build stacked bar:
+	•	X: fraud_date
+	•	series/breakout: fraud_type
+	•	value: fraud_cnt
+    
+
 
 # README — bank DE demo (schema, filler, simple-etl)
 
