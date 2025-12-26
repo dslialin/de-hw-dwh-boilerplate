@@ -1,0 +1,58 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  mc:
+    image: minio/mc:latest
+    depends_on: [minio]
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    volumes:
+      - ./minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+
+  spark:
+    build:
+      context: ./../spark
+      dockerfile: Dockerfile
+    depends_on: [minio, mc]
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: adminadmin
+      PATH: "/opt/spark/bin:/bin:/usr/bin:${PATH}"
+      HOME: /tmp
+      SPARK_JARS_IVY: /tmp/.ivy2
+    user: root
+    volumes:
+      - spark_ivy:/tmp/.ivy2
+      - ./../sql:/opt/sql:ro
+    entrypoint: ["/usr/bin/sleep", "infinity"]
+
+  data-gen:
+    build:
+      context: ./../data-gen
+    depends_on: [minio, mc]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: adminadmin
+      S3_BUCKET: lake
+      PREFIX: incoming
+      # сколько "батчей" изменений отправить
+      BATCHES: "3"
+      SLEEP_SEC: "3"
+    command: ["python", "publish_events.py"]
+
+volumes:
+  minio_data:
+  spark_ivy:

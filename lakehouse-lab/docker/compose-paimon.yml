@@ -1,0 +1,159 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  mc:
+    image: minio/mc:latest
+    depends_on: [minio]
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminadmin
+    volumes:
+      - ./minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+
+  flink-deps:
+    image: curlimages/curl:8.6.0
+    depends_on: [minio, mc]
+    user: "0:0"
+    volumes:
+      - flink_usrlib:/opt/flink/usrlib
+      - flink_plugins:/opt/flink/plugins
+    entrypoint: >
+      /bin/sh -lc '
+        set -e;
+        # mkdir -p /opt/flink/usrlib;
+        mkdir -p /opt/flink/plugins/s3-fs-hadoop;
+
+        echo "Downloading Paimon + Flink S3 plugin + Hadoop/S3A deps...";
+
+        # Paimon (Flink 1.20)
+        curl -L -o /opt/flink/usrlib/paimon.jar \
+          https://repo.maven.apache.org/maven2/org/apache/paimon/paimon-flink-1.20/1.2.0/paimon-flink-1.20-1.2.0.jar;
+
+        # Flink S3 FS Hadoop plugin (must be in plugins/)
+        curl -L -o /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop.jar \
+          https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/1.20.3/flink-s3-fs-hadoop-1.20.3.jar;
+
+        # Hadoop core (minimum for org.apache.hadoop.conf.Configuration + runtime)
+        curl -L -o /opt/flink/usrlib/hadoop-common.jar \
+          https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/3.3.6/hadoop-common-3.3.6.jar;
+        curl -L -o /opt/flink/usrlib/hadoop-auth.jar \
+          https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-auth/3.3.6/hadoop-auth-3.3.6.jar;
+        curl -L -o /opt/flink/usrlib/hadoop-client-api.jar \
+          https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-api/3.3.6/hadoop-client-api-3.3.6.jar;
+        curl -L -o /opt/flink/usrlib/hadoop-client-runtime.jar \
+          https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-runtime/3.3.6/hadoop-client-runtime-3.3.6.jar;
+
+        # Hadoop AWS (S3A) + AWS SDK bundle
+        curl -L -o /opt/flink/usrlib/hadoop-aws.jar \
+          https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.6/hadoop-aws-3.3.6.jar;
+        curl -L -o /opt/flink/usrlib/aws-java-sdk-bundle.jar \
+          https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar;
+
+        touch /opt/flink/usrlib/.ready;
+        echo "Done. Listing:";
+        ls -lah /opt/flink/usrlib | head -50;
+        ls -lah /opt/flink/plugins/s3-fs-hadoop | head -50;
+      '
+
+  flink-jobmanager:
+    image: flink:1.20.3-scala_2.12-java17
+    depends_on: [minio, mc, flink-deps]
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        parallelism.default: 1
+        execution.checkpointing.interval: 10s
+        execution.checkpointing.mode: EXACTLY_ONCE
+        state.checkpoints.dir: s3a://lake/flink-checkpoints
+        state.savepoints.dir: s3a://lake/flink-savepoints
+        fs.s3a.endpoint: http://minio:9000
+        fs.s3a.access.key: admin
+        fs.s3a.secret.key: adminadmin
+        fs.s3a.path.style.access: true
+        fs.s3a.connection.ssl.enabled: false
+        table.exec.sink.upsert-materialize: NONE
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./../sql:/opt/sql:ro
+      - flink_usrlib:/opt/flink/usrlib
+      - flink_plugins:/opt/flink/plugins
+      - flink_ckpt:/tmp/flink-checkpoints
+      - flink_svpt:/tmp/flink-savepoints
+    entrypoint: >
+      bash -lc '
+      set -e;
+      until [ -f /opt/flink/usrlib/.ready ]; do echo "waiting deps..."; sleep 1; done;
+      cp -f /opt/flink/usrlib/*.jar /opt/flink/lib/;
+      /docker-entrypoint.sh jobmanager
+      '
+
+  flink-taskmanager:
+    image: flink:1.20.3-scala_2.12-java17
+    depends_on: [flink-jobmanager, flink-deps]
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        parallelism.default: 1
+        state.checkpoints.dir: s3a://lake/flink-checkpoints
+        state.savepoints.dir: s3a://lake/flink-savepoints
+        fs.s3a.endpoint: http://minio:9000
+        fs.s3a.access.key: admin
+        fs.s3a.secret.key: adminadmin
+        fs.s3a.path.style.access: true
+        fs.s3a.connection.ssl.enabled: false
+        table.exec.sink.upsert-materialize: NONE
+    volumes:
+      - flink_usrlib:/opt/flink/usrlib
+      - flink_plugins:/opt/flink/plugins
+      - flink_ckpt:/tmp/flink-checkpoints
+      - flink_svpt:/tmp/flink-savepoints
+    entrypoint: >
+      bash -lc '
+      set -e;
+      until [ -f /opt/flink/usrlib/.ready ]; do echo "waiting deps..."; sleep 1; done;
+      cp -f /opt/flink/usrlib/*.jar /opt/flink/lib/;
+      /docker-entrypoint.sh taskmanager
+      '
+
+  mc-shell:
+    image: minio/mc
+    depends_on: [minio]
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  data-gen:
+    build:
+      context: ./../data-gen
+    depends_on: [minio, mc]
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: adminadmin
+      S3_BUCKET: lake
+      PREFIX: incoming
+      BATCHES: "3000"
+      SLEEP_SEC: "3"
+    command: ["python", "publish_events.py"]
+
+volumes:
+  minio_data:
+  flink_ckpt:
+  flink_svpt:
+  flink_usrlib:
+  flink_plugins:
