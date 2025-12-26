@@ -1,4 +1,16 @@
-g
+## HW3 — Lakehouse Lab (Track A: Iceberg + Spark)
+
+Запуск:
+```bash
+cd lakehouse-lab
+docker compose -f docker/compose-iceberg.yml up -d --build
+docker exec -it docker-spark-1 /bin/bash
+```
+Проверки (spark-sql):
+	•	lake.ods.transactions: 105
+	•	lake.ods.merchants: 11
+	•	dm.daily_revenue_by_merchant: 2025-12-25 → gross_amount=7830.77, tx_cnt=233
+
 # README — bank DE demo (schema, filler, simple-etl)
 
 Short guide how the repository pieces fit together and how to run the filler, the source DB and the simple ETL / DWH pipeline.
