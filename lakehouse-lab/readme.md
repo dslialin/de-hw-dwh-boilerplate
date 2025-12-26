@@ -1,4 +1,4 @@
-## HW3 — Lakehouse Lab (Track A: Iceberg + Spark)
+## HW3 — Lakehouse Lab
 
 Запуск:
 ```bash
@@ -6,6 +6,10 @@ cd lakehouse-lab
 docker compose -f docker/compose-iceberg.yml up -d --build
 docker exec -it docker-spark-1 /bin/bash
 ```
+Проверки (spark-sql):
+	•	lake.ods.transactions: 105
+	•	lake.ods.merchants: 11
+	•	dm.daily_revenue_by_merchant: 2025-12-25 → gross_amount=7830.77, tx_cnt=233
 
 # Lakehouse/Streamhouse Lab (simple)
 
