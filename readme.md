@@ -1,3 +1,8 @@
+## Metabase dashboard
+
+![Metabase dashboard](metabase_dashboard.png)
+
+
 # README — bank DE demo (schema, filler, simple-etl)
 
 Short guide how the repository pieces fit together and how to run the filler, the source DB and the simple ETL / DWH pipeline.
