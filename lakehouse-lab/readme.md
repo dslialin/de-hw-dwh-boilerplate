@@ -1,3 +1,12 @@
+## HW3 — Lakehouse Lab (Track A: Iceberg + Spark)
+
+Запуск:
+```bash
+cd lakehouse-lab
+docker compose -f docker/compose-iceberg.yml up -d --build
+docker exec -it docker-spark-1 /bin/bash
+```
+
 # Lakehouse/Streamhouse Lab (simple)
 
 ## Track A: Iceberg + Spark
